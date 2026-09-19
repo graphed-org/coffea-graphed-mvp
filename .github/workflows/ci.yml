@@ -95,25 +95,20 @@ jobs:
       if: startsWith( matrix.os, 'ubuntu' )
       env:
         PYTHON_VERSION: ${{ matrix.python-version }}
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
         if [ "$PYTHON_VERSION" = "3.14t" ]; then
-          uv pip install --group test ".[caches,parsl,dask,dask-awkward$GRAPHED_EXTRA]"
+          uv pip install --group test '.[caches,parsl,dask,dask-awkward,graphed]'
         else
-          uv pip install --group test ".[caches,parsl,dask,dask-awkward,triton$GRAPHED_EXTRA]"
+          uv pip install --group test '.[caches,parsl,dask,dask-awkward,triton,graphed]'
         fi
     - name: Install coffea and dependencies (macOS)
       if: matrix.os == 'macOS-latest'
-      env:
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
-        uv pip install --group test ".[caches,dask,dask-awkward$GRAPHED_EXTRA]"
+        uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
     - name: Install coffea and dependencies (Windows)
       if: matrix.os == 'windows-latest'
-      env:
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
-        uv pip install --group test ".[caches,dask,dask-awkward$GRAPHED_EXTRA]"
+        uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
     - name: Start triton server with example model
       if: startsWith( matrix.os, 'ubuntu' ) && matrix.python-version != '3.14t'
       run: |
@@ -203,25 +198,20 @@ jobs:
       if: startsWith( matrix.os, 'ubuntu' )
       env:
         PYTHON_VERSION: ${{ matrix.python-version }}
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
         if [ "$PYTHON_VERSION" = "3.14t" ]; then
-          uv pip install --group test ".[caches,parsl,dask,dask-awkward$GRAPHED_EXTRA]"
+          uv pip install --group test '.[caches,parsl,dask,dask-awkward,graphed]'
         else
-          uv pip install --group test ".[caches,parsl,dask,dask-awkward,triton$GRAPHED_EXTRA]"
+          uv pip install --group test '.[caches,parsl,dask,dask-awkward,triton,graphed]'
         fi
     - name: Install coffea and dependencies (macOS)
       if: matrix.os == 'macOS-latest'
-      env:
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
-        uv pip install --group test ".[caches,dask,dask-awkward$GRAPHED_EXTRA]"
+        uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
     - name: Install coffea and dependencies (Windows)
       if: matrix.os == 'windows-latest'
-      env:
-        GRAPHED_EXTRA: ${{ matrix.python-version != '3.10' && ',graphed' || '' }}
       run: |
-        uv pip install --group test ".[caches,dask,dask-awkward$GRAPHED_EXTRA]"
+        uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
     - name: Start triton server with example model
       if: startsWith( matrix.os, 'ubuntu' ) && matrix.python-version != '3.14t'
       run: |

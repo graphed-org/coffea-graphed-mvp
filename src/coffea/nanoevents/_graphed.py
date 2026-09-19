@@ -7,8 +7,8 @@ backend, so every name a NanoEvents collection can be asked for takes exactly on
 * a record field of the schema'd form, recorded as a ``field`` op;
 * a ``no_dispatch`` descriptor, run eagerly on the record-time typetracer;
 * a name graphed mode refuses, which raises :exc:`NotImplementedError` with a pointer;
-* a :class:`coffea.util._DaskProperty` with a ``.dask`` arm, whose body runs with the graphed
-  array in the deferred array's place;
+* a :class:`coffea.util._DaskProperty`, whose ``.dask`` body runs with the graphed array in the
+  deferred array's place;
 * anything else, through ``graphed``'s own attribute dispatch.
 
 Cross-references come out as ordinary graph edges with both collections as operands, so a worker
