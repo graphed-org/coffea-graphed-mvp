@@ -89,6 +89,9 @@ dask-awkward = [
   "dask-histogram>=2025.2.0",
   "bokeh<3.10",
 ]
+graphed = [
+  "graphed>=0.0.3;python_version>='3.11'",
+]
 parsl = [
   "parsl>=2024.12.09"
 ]
