@@ -22,7 +22,7 @@ from coffea.nanoevents.mapping import (
 from coffea.nanoevents.schemas import BaseSchema, EDM4HEPSchema, NanoAODSchema
 from coffea.nanoevents.schemas.edm4hep import podio_collection_types
 from coffea.nanoevents.util import key_to_tuple, quote, tuple_to_key, unquote
-from coffea.util import _import_dask_awkward, _is_interpretable
+from coffea.util import _import_dask_awkward, _import_graphed, _is_interpretable
 
 _offsets_label = quote(",!offsets")
 
@@ -409,6 +409,7 @@ class NanoEventsFactory:
             )
 
         if mode == "graphed":
+            _import_graphed()
             from coffea.nanoevents import _graphed
 
             _graphed.check_from_root(schemaclass, steps_per_file, uproot_options)

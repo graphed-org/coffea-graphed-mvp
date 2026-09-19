@@ -45,6 +45,7 @@ __all__ = [
     "_import_dask",
     "_import_distributed",
     "_import_dask_awkward",
+    "_import_graphed",
 ]
 
 
@@ -132,6 +133,21 @@ or
 conda install -c conda-forge dask-awkward""") from err
 
     return dask_awkward
+
+
+def _import_graphed():
+    try:
+        import graphed
+    except ModuleNotFoundError as err:
+        raise ModuleNotFoundError("""to use this feature, you must install graphed:
+
+pip install coffea[graphed]
+
+or
+
+pip install graphed""") from err
+
+    return graphed
 
 
 def _ensure_flat(array, allow_missing=False):
