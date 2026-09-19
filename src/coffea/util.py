@@ -3,6 +3,7 @@
 import base64
 import gzip
 import hashlib
+import sys
 import warnings
 from functools import partial, update_wrapper
 from typing import Any
@@ -334,19 +335,19 @@ def _is_interpretable(branch, emit_warning=True):
         return True
 
 
-def _make_dask_descriptor(func):
-    def descriptor(instance, owner, dask_array):
+def _make_deferred_descriptor(func):
+    def descriptor(instance, owner, deferred_array):
         impl = func.__get__(instance, owner)
-        return impl(dask_array)
+        return impl(deferred_array)
 
     return descriptor
 
 
-def _make_dask_method(func):
-    def descriptor(instance, owner, dask_array):
+def _make_deferred_method(func):
+    def descriptor(instance, owner, deferred_array):
         def impl(*args, **kwargs):
             impl = func.__get__(instance, owner)
-            return impl(dask_array, *args, **kwargs)
+            return impl(deferred_array, *args, **kwargs)
 
         return impl
 
@@ -355,10 +356,17 @@ def _make_dask_method(func):
 
 class _DaskProperty(property):
     _dask_get = None
+    _graphed_get = None
+    _no_dispatch = False
 
     def dask(self, func):
         assert self._dask_get is None
-        self._dask_get = _make_dask_descriptor(func)
+        self._dask_get = _make_deferred_descriptor(func)
+        return self
+
+    def graphed(self, func):
+        assert self._graphed_get is None
+        self._graphed_get = _make_deferred_descriptor(func)
         return self
 
     def __reduce__(self):
@@ -367,7 +375,12 @@ class _DaskProperty(property):
         return (
             type(self),
             (self.fget, self.fset, self.fdel),
-            {"__doc__": self.__doc__, "_dask_get": self._dask_get},
+            {
+                "__doc__": self.__doc__,
+                "_dask_get": self._dask_get,
+                "_graphed_get": self._graphed_get,
+                "_no_dispatch": self._no_dispatch,
+            },
         )
 
 
@@ -382,9 +395,9 @@ def dask_property(maybe_func=None, *, no_dispatch=False):
     def dask_property_wrapper(func):
         prop = _DaskProperty(func)
         if no_dispatch:
-            return prop.dask(_adapt_naive_dask_get(func))
-        else:
-            return prop
+            prop.dask(_adapt_naive_dask_get(func))
+            prop._no_dispatch = True
+        return prop
 
     if maybe_func is None:
         return dask_property_wrapper
@@ -394,6 +407,8 @@ def dask_property(maybe_func=None, *, no_dispatch=False):
 
 class _DaskMethod:
     _dask_get = None
+    _graphed_get = None
+    _no_dispatch = False
 
     def __init__(self, impl):
         self._impl = impl
@@ -415,15 +430,21 @@ class _DaskMethod:
         raise NotImplementedError
 
     def dask(self, func):
-        self._dask_get = _make_dask_method(func)
+        self._dask_get = _make_deferred_method(func)
+        return update_wrapper(self, self._impl)
+
+    def graphed(self, func):
+        self._graphed_get = _make_deferred_method(func)
         return update_wrapper(self, self._impl)
 
 
 def dask_method(maybe_func=None, *, no_dispatch=False):
     def dask_method_wrapper(func):
         method = _DaskMethod(func)
-        f = method.dask(_adapt_naive_dask_get(func)) if no_dispatch else method
-        return update_wrapper(f, func)
+        if no_dispatch:
+            method.dask(_adapt_naive_dask_get(func))
+            method._no_dispatch = True
+        return update_wrapper(method, func)
 
     if maybe_func is None:
         return dask_method_wrapper
@@ -432,6 +453,18 @@ def dask_method(maybe_func=None, *, no_dispatch=False):
 
 
 def maybe_map_partitions(func, *args, **kwargs):
+    # A graphed array is not a dask collection and has no partitions to map over: unguarded, the
+    # call below silently returns None (or runs func eagerly where dask is absent). Looked up in
+    # sys.modules so that importing coffea never imports graphed.
+    graphed = sys.modules.get("graphed")
+    if graphed is not None and any(
+        isinstance(arg, graphed.Array) for arg in (*args, *kwargs.values())
+    ):
+        raise NotImplementedError(
+            "maybe_map_partitions has no graphed arm; record the operation on the graph "
+            "instead, with graphed.apply or graphed.awkward.gak"
+        )
+
     _MP_ONLY = {
         "label",
         "token",

@@ -345,6 +345,12 @@ class NanoCollection:
             label="apply_global_index",
         )
 
+    @_apply_global_index.graphed
+    def _apply_global_index(self, graphed_array, index):
+        from coffea.nanoevents._graphed import record_method
+
+        return record_method(graphed_array, "_apply_global_index", index)
+
     @dask_method(no_dispatch=True)
     def _events(self):
         """Internal method to get the originally-constructed NanoEvents

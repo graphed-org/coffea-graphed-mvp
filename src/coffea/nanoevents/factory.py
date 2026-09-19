@@ -33,6 +33,17 @@ def _key_formatter(prefix, form_key, form, attribute):
     return prefix + f"/{attribute}/{form_key}"
 
 
+def _rebuild_map_schema(cls, schemaclass, metadata, version, base_form_extras):
+    extras = {} if base_form_extras is None else {"base_form_extras": base_form_extras}
+    return cls(
+        schemaclass=schemaclass,
+        behavior=dict(schemaclass.behavior()),
+        metadata=metadata,
+        version=version,
+        **extras,
+    )
+
+
 class _map_schema_base:  # ImplementsFormMapping, ImplementsFormMappingInfo
     def __init__(
         self, schemaclass=BaseSchema, metadata=None, behavior=None, version=None
@@ -41,6 +52,20 @@ class _map_schema_base:  # ImplementsFormMapping, ImplementsFormMappingInfo
         self.behavior = behavior
         self.metadata = metadata
         self.version = version
+
+    def __reduce__(self):
+        # A schema's behavior dict holds closures (vector's, among others), so the mapping ships
+        # the schema class and rebuilds the behavior on the far side rather than pickling it.
+        return (
+            _rebuild_map_schema,
+            (
+                type(self),
+                self.schemaclass,
+                self.metadata,
+                self.version,
+                getattr(self, "base_form_extras", None),
+            ),
+        )
 
     def keys_for_buffer_keys(self, buffer_keys):
         base_columns = set()
@@ -253,7 +278,18 @@ class _map_schema_parquet(_map_schema_base):
         return awkward.forms.form.from_dict(self.schemaclass(lform, self.version).form)
 
 
-_allowed_modes = frozenset(["eager", "virtual", "dask"])
+_allowed_modes = frozenset(["eager", "virtual", "dask", "graphed"])
+
+
+def _tree_to_open(file, treepath):
+    """The tree the deferred arms hand to uproot, resolving a directory through ``treepath``."""
+    if not isinstance(file, uproot.reading.ReadOnlyDirectory):
+        return file
+    if treepath is uproot._util.unset:
+        raise ValueError(
+            "The treepath argument must be specified when the file argument is an uproot.reading.ReadOnlyDirectory"
+        )
+    return file[treepath]
 
 
 class NanoEventsFactory:
@@ -320,7 +356,9 @@ class NanoEventsFactory:
                 The filename or dict of filenames including the treepath (as it would be passed directly to ``uproot.open()``
                 or ``uproot.dask()``) already opened file using e.g. ``uproot.open()``.
             mode : str
-                Nanoevents will use "eager", "virtual", or "dask" as a backend.
+                Nanoevents will use "eager", "virtual", "dask", or "graphed" as a backend.
+                "graphed" records the analysis into a ``graphed`` graph and reads nothing until
+                the graph is run; it needs a schema declaring ``__graphed_capable__ = True``.
             treepath : str, optional
                 Name of the tree to read in the file. Used only if ``file`` is a ``uproot.reading.ReadOnlyDirectory``
                 or a string that does not contain tree information that uproot can parse on its own.
@@ -377,18 +415,39 @@ class NanoEventsFactory:
                 RuntimeWarning,
             )
 
+        if mode == "graphed":
+            from coffea.nanoevents import _graphed
+
+            _graphed.check_from_root(schemaclass, steps_per_file, uproot_options)
+            behavior = dict(schemaclass.behavior())
+            map_schema = _map_schema_uproot(
+                schemaclass=schemaclass,
+                behavior=behavior,
+                metadata=metadata,
+                version="latest",
+            )
+            opener = partial(
+                uproot.graphed,
+                _tree_to_open(file, treepath),
+                full_paths=True,
+                ak_add_doc={"__doc__": "title", "typename": "typename"},
+                filter_branch=_is_interpretable,
+                known_base_form=known_base_form,
+                # the recording backend carries the behavior because the typetracer the deferred
+                # routes dispatch on is built from it
+                backend=_graphed.GraphedNanoBackend(behavior=behavior),
+                decompression_executor=decompression_executor,
+                interpretation_executor=interpretation_executor,
+                **uproot_options,
+            )
+            return cls(map_schema, opener, None, mode="graphed")
+
         if (
             mode == "dask"
             and not isinstance(schemaclass, FunctionType)
             and schemaclass.__dask_capable__
         ):
-            to_open = file
-            if isinstance(file, uproot.reading.ReadOnlyDirectory):
-                if treepath is uproot._util.unset:
-                    raise ValueError(
-                        "The treepath argument must be specified when the file argument is an uproot.reading.ReadOnlyDirectory"
-                    )
-                to_open = file[treepath]
+            to_open = _tree_to_open(file, treepath)
 
             base_form_extras = {}
             if known_base_form is None and _reads_podio_metadata(schemaclass):
@@ -574,6 +633,12 @@ class NanoEventsFactory:
 
         if mode not in _allowed_modes:
             raise ValueError(f"Invalid mode {mode}, valid modes are {_allowed_modes}")
+
+        if mode == "graphed":
+            raise NotImplementedError(
+                "graphed mode reads ROOT files only; use "
+                "NanoEventsFactory.from_root(..., mode='graphed')"
+            )
 
         if (
             mode == "dask"
@@ -811,12 +876,19 @@ class NanoEventsFactory:
 
         Returns
         -------
-            awkward.Array or dask_awkward.Array or tuple
+            awkward.Array or dask_awkward.Array or graphed.Array or tuple
                 Events materialised according to the configured backend. In ``\"dask\"``
                 mode a ``dask_awkward.Array`` is returned (optionally paired with a
-                report). In ``\"virtual\"`` or ``\"eager\"`` mode an ``awkward.Array`` is
-                returned.
+                report), in ``\"graphed\"`` mode a deferred ``graphed.Array``. In
+                ``\"virtual\"`` or ``\"eager\"`` mode an ``awkward.Array`` is returned.
         """
+        if self._mode == "graphed":
+            events = self._mapping(form_mapping=self._schema)
+            # `_events()` resolves cross-references off the record-time typetracer, so the root
+            # array is planted there rather than on any chunk a worker will see
+            events.session.form(events).tt.attrs["@original_array"] = events
+            return events
+
         if self._mode == "dask":
             dask_awkward = _import_dask_awkward()
             dask_awkward.lib.core.dak_cache.clear()

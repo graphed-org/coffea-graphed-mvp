@@ -77,6 +77,13 @@ class edm4hep_nanocollection(base.NanoCollection):
             label="apply_nested_global_index",
         )
 
+    @_apply_nested_global_index.graphed
+    def _apply_nested_global_index(self, graphed_array, index):
+        """Similar to _apply_global_index but the indexes are twice nested"""
+        from coffea.nanoevents._graphed import record_method
+
+        return record_method(graphed_array, "_apply_nested_global_index", index)
+
     @dask_property
     def List_Relations(self):
         """List all the branches that are for OneToOneRelations or OneToManyRelations"""
