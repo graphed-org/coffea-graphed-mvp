@@ -33,14 +33,13 @@ def _key_formatter(prefix, form_key, form, attribute):
     return prefix + f"/{attribute}/{form_key}"
 
 
-def _rebuild_map_schema(cls, schemaclass, metadata, version, base_form_extras):
-    extras = {} if base_form_extras is None else {"base_form_extras": base_form_extras}
-    return cls(
+def _rebuild_map_schema_uproot(schemaclass, metadata, version, base_form_extras):
+    return _map_schema_uproot(
         schemaclass=schemaclass,
         behavior=dict(schemaclass.behavior()),
         metadata=metadata,
         version=version,
-        **extras,
+        base_form_extras=base_form_extras,
     )
 
 
@@ -52,20 +51,6 @@ class _map_schema_base:  # ImplementsFormMapping, ImplementsFormMappingInfo
         self.behavior = behavior
         self.metadata = metadata
         self.version = version
-
-    def __reduce__(self):
-        # A schema's behavior dict holds closures (vector's, among others), so the mapping ships
-        # the schema class and rebuilds the behavior on the far side rather than pickling it.
-        return (
-            _rebuild_map_schema,
-            (
-                type(self),
-                self.schemaclass,
-                self.metadata,
-                self.version,
-                getattr(self, "base_form_extras", None),
-            ),
-        )
 
     def keys_for_buffer_keys(self, buffer_keys):
         base_columns = set()
@@ -164,6 +149,14 @@ class _map_schema_uproot(_map_schema_base):
         )
         # file-level information the schema needs beyond the form (dask mode has no tree)
         self.base_form_extras = base_form_extras or {}
+
+    def __reduce__(self):
+        # A schema's behavior dict holds closures (vector's, among others), so the mapping ships
+        # the schema class and rebuilds the behavior on the far side rather than pickling it.
+        return (
+            _rebuild_map_schema_uproot,
+            (self.schemaclass, self.metadata, self.version, self.base_form_extras),
+        )
 
     def __call__(self, form):
         from coffea.nanoevents.mapping.uproot import _lazify_form
