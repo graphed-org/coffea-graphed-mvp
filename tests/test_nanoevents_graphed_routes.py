@@ -22,24 +22,16 @@ from coffea.nanoevents import (  # noqa: E402
     NanoEventsFactory,
     PFNanoAODSchema,
 )
-from coffea.nanoevents.methods.base import NanoCollection  # noqa: E402
-from coffea.nanoevents.methods.edm4hep import edm4hep_nanocollection  # noqa: E402
 from coffea.util import _DaskMethod, _DaskProperty  # noqa: E402
 
 #: the routes of the graphed dispatch, in the order they are tried
-FIELD, NO_DISPATCH, GRAPHED_ARM, REFUSED, DASK_ARM, FALLBACK = (
+FIELD, NO_DISPATCH, REFUSED, DASK_ARM, FALLBACK = (
     "field",
     "no_dispatch",
-    "graphed_arm",
     "refused",
     "dask_arm",
     "fallback",
 )
-
-
-def _graphed_arm(descriptor):
-    """The arm a descriptor's ``.graphed`` registration slot holds, beside ``.dask``'s."""
-    return getattr(descriptor, "_graphed_get", None)
 
 
 def _behavior_names(schemaclass):
@@ -73,8 +65,6 @@ def _route(holder, eager_holder, name):
     if name in (tracer.fields or []):
         return FIELD
     static = getattr_static(tracer, name, None)
-    if _graphed_arm(static) is not None:
-        return GRAPHED_ARM
     failure = None
     try:
         got = getattr(holder, name)
@@ -153,27 +143,16 @@ def test_every_name_takes_exactly_one_route(admitted):
     assert set(routes) == {
         FIELD,
         NO_DISPATCH,
-        GRAPHED_ARM,
         REFUSED,
         DASK_ARM,
         FALLBACK,
     }
-    assert routes[GRAPHED_ARM] == {"_apply_global_index"}
     assert routes[REFUSED] == {"_ensure_systematics", "add_systematic"}
     assert {"_events", "_content", "_collection_name"} <= routes[NO_DISPATCH]
     assert {"matched_jet", "children", "distinctParent"} <= routes[DASK_ARM]
-    assert {"delta_r", "metric_table", "isTight"} <= routes[FALLBACK]
-
-
-def test_the_global_index_arms_are_registered_on_the_graphed_slot():
-    assert callable(_DaskProperty.graphed) and callable(_DaskMethod.graphed)
-    for owner, name in (
-        (NanoCollection, "_apply_global_index"),
-        (edm4hep_nanocollection, "_apply_nested_global_index"),
-    ):
-        descriptor = getattr_static(owner, name)
-        assert _graphed_arm(descriptor) is not None
-        assert getattr(descriptor, "_dask_get", None) is not None
+    assert {"delta_r", "metric_table", "isTight", "_apply_global_index"} <= routes[
+        FALLBACK
+    ]
 
 
 # ---- one representative per route, asserted bit-for-bit against the eager arm ------------------
@@ -185,7 +164,7 @@ def r_no_dispatch(events):
     return events.Muon._events().Jet.pt
 
 
-def r_graphed_arm(events):
+def r_fallback_global_index(events):
     return events.GenJet._apply_global_index(events.Jet.genJetIdxG).pt
 
 
@@ -204,7 +183,7 @@ def r_fallback_property(events):
 REPRESENTATIVES = {
     FIELD: (r_field, "Muon", "pt"),
     NO_DISPATCH: (r_no_dispatch, "Muon", "_events"),
-    GRAPHED_ARM: (r_graphed_arm, "GenJet", "_apply_global_index"),
+    "fallback_global_index": (r_fallback_global_index, "GenJet", "_apply_global_index"),
     DASK_ARM: (r_dask_arm, "Muon", "matched_jet"),
     "fallback_method": (r_fallback_method, "Muon", "delta_r"),
     "fallback_property": (r_fallback_property, "Jet", "isTight"),
