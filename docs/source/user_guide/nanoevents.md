@@ -172,7 +172,7 @@ where the capability lives instead:
 
 A schema is admitted only if it declares `__graphed_capable__ = True` in its own class body, which
 `NanoAODSchema` and `PFNanoAODSchema` do. Subclasses do not inherit the flag: declare it once the
-schema's cross-references have been checked against the graphed arm.
+schema's cross-references have been checked in graphed mode.
 
 ## Keep processing columnar
 

@@ -6,7 +6,6 @@ backend, so every name a NanoEvents collection can be asked for takes exactly on
 
 * a record field of the schema'd form, recorded as a ``field`` op;
 * a ``no_dispatch`` descriptor, run eagerly on the record-time typetracer;
-* a descriptor with a ``.graphed`` arm (the global-index cross-reference helpers);
 * a name graphed mode refuses, which raises :exc:`NotImplementedError` with a pointer;
 * a :class:`coffea.util._DaskProperty` with a ``.dask`` arm, whose body runs with the graphed
   array in the deferred array's place;
@@ -45,33 +44,28 @@ class _GraphedBoundMethod(BoundMethod):
         return super().__call__(*args, **kwargs)
 
 
-def record_method(array, name, *args, **kwargs):
-    """Record a behavior method call on ``array``: what a ``.graphed`` arm returns."""
-    return _GraphedBoundMethod(array, name)(*args, **kwargs)
-
-
 class GraphedNanoArray(graphed.Array):
     """The deferred NanoEvents surface, mirroring ``dask_awkward.Array.__getattr__``."""
 
+    __slots__ = ()
+
     def __getattr__(self, name):
         # The order is the contract, not an optimisation: a record field shadows a behavior of
-        # the same name, a descriptor that declined dispatch is answered before the arms that
-        # record, and a registered arm wins over the default below even where it agrees with it.
+        # the same name, and a descriptor that declined dispatch is answered before the arms
+        # that record.
         if name.startswith("__"):
             raise AttributeError(name)
         session = self.session
         form = session.form(self)
         tracer = session.backend._with_behavior(form.tt)
-        if name in (tracer.fields or []):
+        if name in tracer.fields:
             return session.record_op("field", [self], {"field": name})
         static = getattr_static(tracer, name, None)
         if getattr(static, "_no_dispatch", False):
             return static._dask_get(tracer, type(tracer), self)
-        if getattr(static, "_graphed_get", None) is not None:
-            return static._graphed_get(tracer, type(tracer), self)
         if name in _REFUSED:
             raise NotImplementedError(_VARY_POINTER)
-        if isinstance(static, _DaskProperty) and static._dask_get is not None:
+        if isinstance(static, _DaskProperty):
             return static._dask_get(tracer, type(tracer), self)
         # everything left is graphed's own dispatch, reusing its method/property split; unlike
         # graphed.Array.__getattr__ it is reached for underscore names too, which the behavior
