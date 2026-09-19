@@ -23,8 +23,12 @@ import graphed
 import uproot
 from graphed.array import BoundMethod
 from graphed.awkward import AwkwardBackend
+from graphed.provenance import register_internal
 
 from coffea.util import _DaskProperty
+
+# a recorded op's provenance is the analyst's line, not the coffea frame that recorded it
+register_internal("coffea")
 
 #: names whose deferred meaning is a systematics axis, which graphed spells its own way
 _REFUSED = frozenset({"_ensure_systematics", "add_systematic"})

@@ -187,6 +187,22 @@ def pfnano(tests_directory):
     return _both_arms(tests_directory, "pfnano.root", PFNanoAODSchema)
 
 
+def test_recorded_ops_point_at_the_analysts_line(tests_directory):
+    path = os.path.join(tests_directory, "samples", "nano_dy.root")
+    events = _factory(path, NanoAODSchema, "graphed").events()
+    muons = events.Muon
+    recorded = {
+        "source": events,
+        "field": muons,
+        "method": muons.delta_r(muons),
+    }
+    here = {how: __file__ for how in recorded}
+    assert {
+        how: events.session.provenance(array).filename
+        for how, array in recorded.items()
+    } == here
+
+
 # ---- the factory arm -------------------------------------------------------------------------
 def test_graphed_is_an_allowed_mode_and_imported_lazily():
     clean = subprocess.run(
