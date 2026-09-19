@@ -109,6 +109,10 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
+    # remove once an uproot release carries scikit-hep/uproot5#1720, and raise the uproot floor to it
+    - name: Install uproot from scikit-hep/uproot5#1720
+      run: |
+        uv pip install 'uproot @ git+https://github.com/scikit-hep/uproot5@refs/pull/1720/head'
     - name: Start triton server with example model
       if: startsWith( matrix.os, 'ubuntu' ) && matrix.python-version != '3.14t'
       run: |
@@ -212,6 +216,10 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         uv pip install --group test '.[caches,dask,dask-awkward,graphed]'
+    # remove once an uproot release carries scikit-hep/uproot5#1720, and raise the uproot floor to it
+    - name: Install uproot from scikit-hep/uproot5#1720
+      run: |
+        uv pip install 'uproot @ git+https://github.com/scikit-hep/uproot5@refs/pull/1720/head'
     - name: Start triton server with example model
       if: startsWith( matrix.os, 'ubuntu' ) && matrix.python-version != '3.14t'
       run: |
