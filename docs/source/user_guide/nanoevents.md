@@ -155,6 +155,11 @@ print(n_jet_per_event[:5])
 `n_jet` costs only the `nJet` counter: a plan reads what the graph touches, not what the schema
 describes.
 
+A plan run re-raises a failing operation's error as awkward raised it. To have it point at the
+analysis line that recorded the operation, run the output with
+`graphed.debug.run(events.session, output)` after `import graphed.debug`, which raises a
+`StageError` naming that line.
+
 ### What graphed mode refuses
 
 Graphed mode raises `NotImplementedError` instead of falling back silently, and each message names
@@ -171,7 +176,9 @@ where the capability lives instead:
 
 A schema is admitted only if it declares `__graphed_capable__ = True` in its own class body, which
 `NanoAODSchema` and `PFNanoAODSchema` do. Subclasses do not inherit the flag: declare it once the
-schema's cross-references have been checked in graphed mode.
+schema's cross-references have been checked in graphed mode. A plan reaches workers through plain
+`pickle`, so its `reduce`/`combine`/`empty` callables and any custom schema class must live in a
+module the workers can import, not in a notebook or `__main__`.
 
 ## Keep processing columnar
 
