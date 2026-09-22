@@ -15,7 +15,7 @@ graphed = pytest.importorskip("graphed")
 pytest.importorskip("graphed.awkward")
 
 from graphed.array import BoundMethod  # noqa: E402
-from test_nanoevents_graphed import assert_same  # noqa: E402
+from test_nanoevents_graphed import _both_arms, assert_same  # noqa: E402
 
 from coffea.nanoevents import (  # noqa: E402
     NanoAODSchema,
@@ -87,26 +87,14 @@ def _route(holder, eager_holder, name):
     return None
 
 
-def _arms(tests_directory, sample, schemaclass):
-    path = os.path.join(tests_directory, "samples", sample)
-    both = []
-    for mode in ("graphed", "eager"):
-        both.append(
-            NanoEventsFactory.from_root(
-                {path: "Events"}, schemaclass=schemaclass, mode=mode
-            ).events()
-        )
-    return tuple(both)
-
-
 @pytest.fixture(scope="module")
 def nanoaod(tests_directory):
-    return _arms(tests_directory, "nano_dy.root", NanoAODSchema)
+    return _both_arms(tests_directory, "nano_dy.root", NanoAODSchema)
 
 
 @pytest.fixture(scope="module")
 def pfnano(tests_directory):
-    return _arms(tests_directory, "pfnano.root", PFNanoAODSchema)
+    return _both_arms(tests_directory, "pfnano.root", PFNanoAODSchema)
 
 
 @pytest.fixture(
