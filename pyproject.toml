@@ -90,7 +90,7 @@ dask-awkward = [
   "bokeh<3.10",
 ]
 graphed = [
-  "graphed>=0.0.3;python_version>='3.11'",
+  "graphed>=0.0.4;python_version>='3.11'",
 ]
 parsl = [
   "parsl>=2024.12.09"
@@ -168,7 +168,7 @@ ignore = ["W002"]
 [tool.uv]
 # Supply-chain cooldown: ignore releases published in the last week.
 exclude-newer = "7 days"
-# graphed 0.0.3 (2026-09-19) is inside the window; drop this line once it has rolled past
+# graphed 0.0.4 (2026-09-22) is inside the window; drop this line once it has rolled past
 exclude-newer-package = {graphed = false}
 
 [tool.ruff.lint]
