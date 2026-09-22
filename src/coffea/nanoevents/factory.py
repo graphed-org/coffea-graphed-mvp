@@ -481,11 +481,7 @@ class NanoEventsFactory:
             mode = "virtual"
 
         if isinstance(file, uproot.reading.ReadOnlyDirectory):
-            if treepath is uproot._util.unset:
-                raise ValueError(
-                    "The treepath argument must be specified when the file argument is an uproot.reading.ReadOnlyDirectory"
-                )
-            tree = file[treepath]
+            tree = _tree_to_open(file, treepath)
             file_handle = file
         elif "<class 'uproot.rootio.ROOTDirectory'>" == str(type(file)):
             raise RuntimeError(
