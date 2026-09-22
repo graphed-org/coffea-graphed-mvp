@@ -415,10 +415,9 @@ class NanoEventsFactory:
             uproot_options = _graphed.check_from_root(
                 schemaclass, steps_per_file, uproot_options
             )
-            behavior = dict(schemaclass.behavior())
             map_schema = _map_schema_uproot(
                 schemaclass=schemaclass,
-                behavior=behavior,
+                behavior=dict(schemaclass.behavior()),
                 metadata=metadata,
                 version="latest",
             )
@@ -429,9 +428,6 @@ class NanoEventsFactory:
                 ak_add_doc={"__doc__": "title", "typename": "typename"},
                 filter_branch=_is_interpretable,
                 known_base_form=known_base_form,
-                # the recording backend carries the behavior because the typetracer the deferred
-                # routes dispatch on is built from it
-                backend=_graphed.GraphedNanoBackend(behavior=behavior),
                 decompression_executor=decompression_executor,
                 interpretation_executor=interpretation_executor,
                 **uproot_options,
@@ -875,7 +871,12 @@ class NanoEventsFactory:
                 ``\"virtual\"`` or ``\"eager\"`` mode an ``awkward.Array`` is returned.
         """
         if self._mode == "graphed":
-            events = self._mapping(form_mapping=self._schema)
+            from coffea.nanoevents import _graphed
+
+            # built per call because its behavior dict does not pickle; the typetracer the
+            # deferred routes dispatch on is built from that behavior
+            backend = _graphed.GraphedNanoBackend(behavior=self._schema.behavior)
+            events = self._mapping(form_mapping=self._schema, backend=backend)
             # `_events()` resolves cross-references off the record-time typetracer, so the root
             # array is planted there rather than on any chunk a worker will see
             events.session.form(events).tt.attrs["@original_array"] = events
