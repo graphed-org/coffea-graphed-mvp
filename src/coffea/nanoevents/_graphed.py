@@ -112,17 +112,6 @@ class GraphedNanoBackend(AwkwardBackend):
         return GraphedNanoArray
 
 
-def graphed_backend():
-    """The worker-side recording backend, addressed as an import reference::
-
-        graphed.aggregate_plan(..., backend="coffea.nanoevents._graphed:graphed_backend")
-
-    It carries no behavior dict: a mapped chunk is assembled by ``awkward.from_buffers`` with the
-    schema's behavior already applied, and that dict holds closures that would not pickle.
-    """
-    return GraphedNanoBackend()
-
-
 def check_from_root(schemaclass, steps_per_file, uproot_options):
     """Refuse the ``from_root`` arguments and schemas graphed mode cannot honour, and return the
     uproot options to forward."""

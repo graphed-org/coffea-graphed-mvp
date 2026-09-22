@@ -115,8 +115,8 @@ n_jet = gak.num(events.Jet, axis=1)
 ```
 
 Nothing has been read yet. `graphed.aggregate_plan` turns the recorded outputs into a plan an
-executor runs partition by partition. Workers build coffea's recording backend from an import
-reference, so the plan itself carries no schema behaviors:
+executor runs partition by partition. The plan names coffea's recording backend by its class, so it
+carries no schema behaviors:
 
 ```python
 from graphed.core.execution import SequentialRunner
@@ -143,7 +143,6 @@ plan = graphed.aggregate_plan(
     combine=combine,
     empty=empty,
     steps_per_file=2,
-    backend="coffea.nanoevents._graphed:graphed_backend",
 )
 print(sorted(plan.process.columns))
 # ['Jet_pt', 'Muon_jetIdx', 'nJet', 'nMuon']

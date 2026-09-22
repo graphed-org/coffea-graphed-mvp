@@ -288,7 +288,6 @@ def test_plan_matches_eager(
         combine=combine_lists,
         empty=no_lists,
         steps_per_file=steps_per_file,
-        backend="coffea.nanoevents._graphed:graphed_backend",
     )
     assert len(plan.tasks) == steps_per_file
     result = SequentialRunner().run(plan)
@@ -305,19 +304,11 @@ def test_plan_read_list_names_the_counter_branch(nanoaod):
         reduce=reduce_to_lists,
         combine=combine_lists,
         empty=no_lists,
-        backend="coffea.nanoevents._graphed:graphed_backend",
     )
     # the count-only output reads no Jet leaf, only the counter that gives it its length
     assert tuple(sorted(plan.process.columns)) == ("Muon_pt", "nJet", "nMuon")
     got = SequentialRunner().run(plan).value
     assert _equal(got, reduce_to_lists([eager.Muon.pt, ak.num(eager.Jet, axis=1)]))
-
-
-# ---- the worker backend ----------------------------------------------------------------------
-def test_worker_backend_is_importable_by_reference(nanoaod):
-    events, _eager = nanoaod
-    backend = graphed.resolve_backend("coffea.nanoevents._graphed:graphed_backend")
-    assert backend.array_type() is type(events)
 
 
 def test_pickled_plan_runs_in_a_fresh_interpreter(nanoaod, tmp_path):
@@ -328,7 +319,6 @@ def test_pickled_plan_runs_in_a_fresh_interpreter(nanoaod, tmp_path):
         combine=combine_lists,
         empty=no_lists,
         steps_per_file=2,
-        backend="coffea.nanoevents._graphed:graphed_backend",
     )
     blob = tmp_path / "plan.pkl"
     blob.write_bytes(pickle.dumps(plan))
