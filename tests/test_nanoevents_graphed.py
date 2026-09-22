@@ -373,6 +373,17 @@ def test_refuses_arguments_that_belong_to_the_plan(tests_directory):
         )
 
 
+def test_admits_the_report_option_switched_off(tests_directory):
+    path = os.path.join(tests_directory, "samples", "nano_dy.root")
+    factory = _factory(
+        path,
+        NanoAODSchema,
+        "graphed",
+        uproot_options={"allow_read_errors_with_report": False},
+    )
+    assert isinstance(factory.events(), graphed.Array)
+
+
 def test_refuses_user_callables_and_coffea_systematics(nanoaod):
     events, _eager = nanoaod
     with pytest.raises(NotImplementedError, match=r"callable"):

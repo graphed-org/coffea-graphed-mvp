@@ -412,7 +412,9 @@ class NanoEventsFactory:
             _import_graphed()
             from coffea.nanoevents import _graphed
 
-            _graphed.check_from_root(schemaclass, steps_per_file, uproot_options)
+            uproot_options = _graphed.check_from_root(
+                schemaclass, steps_per_file, uproot_options
+            )
             behavior = dict(schemaclass.behavior())
             map_schema = _map_schema_uproot(
                 schemaclass=schemaclass,

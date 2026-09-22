@@ -124,13 +124,14 @@ def graphed_backend():
 
 
 def check_from_root(schemaclass, steps_per_file, uproot_options):
-    """Refuse the ``from_root`` arguments and schemas graphed mode cannot honour."""
+    """Refuse the ``from_root`` arguments and schemas graphed mode cannot honour, and return the
+    uproot options to forward."""
     if steps_per_file is not uproot._util.unset:
         raise NotImplementedError(
             "graphed mode does not partition files here; pass steps_per_file where the plan is "
             "built, graphed.aggregate_plan(..., steps_per_file=...)"
         )
-    if "allow_read_errors_with_report" in uproot_options:
+    if uproot_options.get("allow_read_errors_with_report"):
         raise NotImplementedError(
             "graphed mode has no report tuple; failed partitions are dead-lettered and retried "
             "by graphed.checkpoint.run_resumable"
@@ -142,3 +143,9 @@ def check_from_root(schemaclass, steps_per_file, uproot_options):
             f"graphed mode needs a schema declaring __graphed_capable__ = True in its own class "
             f"body, which {schemaclass!r} does not"
         )
+    # uproot.graphed refuses the report key by presence, even switched off
+    return {
+        key: value
+        for key, value in uproot_options.items()
+        if key != "allow_read_errors_with_report"
+    }
