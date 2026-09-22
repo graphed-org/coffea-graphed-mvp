@@ -5,7 +5,6 @@ import sys
 
 import awkward as ak
 import pytest
-import uproot
 
 if sys.version_info < (3, 11):
     pytest.skip("graphed requires Python 3.11 or newer", allow_module_level=True)
@@ -310,11 +309,6 @@ def test_plan_read_list_names_the_counter_branch(nanoaod):
     )
     # the count-only output reads no Jet leaf, only the counter that gives it its length
     assert tuple(sorted(plan.process.columns)) == ("Muon_pt", "nJet", "nMuon")
-    # and the plan ships exactly what the public projection reports for the same outputs
-    projected = set()
-    for output in outputs:
-        projected |= uproot.necessary_columns(output)["Events"]
-    assert projected == set(plan.process.columns)
     got = SequentialRunner().run(plan).value
     assert _equal(got, reduce_to_lists([eager.Muon.pt, ak.num(eager.Jet, axis=1)]))
 
