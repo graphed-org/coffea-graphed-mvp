@@ -139,13 +139,15 @@ def _import_graphed():
     try:
         import graphed
     except ModuleNotFoundError as err:
-        raise ModuleNotFoundError("""to use this feature, you must install graphed:
+        raise ModuleNotFoundError(
+            """to use this feature, you must install graphed, which needs Python 3.11 or newer:
 
 pip install coffea[graphed]
 
 or
 
-pip install graphed""") from err
+pip install graphed"""
+        ) from err
 
     return graphed
 
