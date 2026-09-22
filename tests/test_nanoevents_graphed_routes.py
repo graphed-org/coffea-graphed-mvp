@@ -214,3 +214,39 @@ def test_eager_arms_are_untouched(tests_directory):
     ).events()
     assert eager.Muon._collection_name() == "Muon"
     assert ak.all(eager.Muon.matched_jet.pt == eager.Jet[eager.Muon.jetIdx].pt)
+
+
+# ---- ak.Array's own attributes are not event data ---------------------------------------------
+def test_array_metadata_answers_at_record_time_and_records_nothing(nanoaod):
+    events, eager = nanoaod
+    muons = events.Muon
+    before = events.session.node_count()
+    assert "pt" in muons.fields
+    assert muons.fields == eager.Muon.fields
+    assert muons.ndim == eager.Muon.ndim == 2
+    with pytest.raises(AttributeError, match="materialize"):
+        muons.nbytes
+    with pytest.raises(AttributeError, match=r"gak\.mask"):
+        muons.mask
+    assert events.session.node_count() == before
+
+
+def test_a_field_named_like_array_metadata_is_still_a_field():
+    # no NanoAOD sample has such a field, so the record is built here
+    from graphed.awkward import from_awkward
+
+    from coffea.nanoevents._graphed import GraphedNanoBackend
+
+    session = graphed.Session(GraphedNanoBackend())
+    records = from_awkward(session, "events", ak.Array([{"ndim": 1}, {"ndim": 3}]))
+    assert ak.to_list(session.materialize(records.ndim)) == [1, 3]
+
+
+def test_array_display_hooks_are_not_dispatched(nanoaod, capsys):
+    events, _eager = nanoaod
+    for hook in ("_repr_mimebundle_", "_ipython_key_completions_", "_repr"):
+        assert getattr(events.Muon, hook, None) is None
+    formatters = pytest.importorskip("IPython.core.formatters")
+    shown, _metadata = formatters.DisplayFormatter().format(events.Muon)
+    assert "text/plain" in shown
+    assert capsys.readouterr().err == ""

@@ -9,6 +9,8 @@ backend, so every name a NanoEvents collection can be asked for takes exactly on
 * a name graphed mode refuses, which raises :exc:`NotImplementedError` with a pointer;
 * a :class:`coffea.util._DaskProperty`, whose ``.dask`` body runs with the graphed array in the
   deferred array's place;
+* ``ak.Array``'s own metadata (``fields``, ``ndim``, ...), answered from the record-time
+  typetracer or refused with :exc:`AttributeError`;
 * anything else, through ``graphed``'s own attribute dispatch.
 
 Cross-references come out as ordinary graph edges with both collections as operands, so a worker
@@ -19,6 +21,7 @@ This is the only module in coffea that imports ``graphed``, and only ``mode="gra
 
 from inspect import getattr_static
 
+import awkward
 import graphed
 import uproot
 from graphed.array import BoundMethod
@@ -34,6 +37,23 @@ register_internal("coffea")
 _REFUSED = frozenset({"_ensure_systematics", "add_systematic"})
 
 _VARY_POINTER = "graphed mode does not carry coffea systematics; build the variations with graphed.vary(...)"
+
+#: ak.Array descriptors the record-time typetracer answers as the data would; the rest (attrs,
+#: behavior, layout, mask, nbytes, ...) are refused, the same split graphed-org/graphed#42 makes
+_INTROSPECT_EAGER = frozenset(
+    {"fields", "type", "typestr", "ndim", "is_tuple", "positional_axis"}
+)
+
+
+def _introspect(tracer, name):
+    if name not in _INTROSPECT_EAGER:
+        hint = (
+            "use gak.mask(array, condition)"
+            if name == "mask"
+            else "materialize the array and read it there"
+        )
+        raise AttributeError(f"a deferred graphed array cannot answer {name!r}; {hint}")
+    return getattr(tracer, name)
 
 
 class _GraphedBoundMethod(BoundMethod):
@@ -71,11 +91,17 @@ class GraphedNanoArray(graphed.Array):
             raise NotImplementedError(_VARY_POINTER)
         if isinstance(static, _DaskProperty):
             return static._dask_get(tracer, type(tracer), self)
+        # ak.Array's own attributes describe the array, not its elements
+        own = static is not None and static is getattr_static(awkward.Array, name, None)
+        if own and name.startswith("_"):
+            raise AttributeError(name)  # display hooks such as _repr_mimebundle_
         # everything left is graphed's own dispatch, reusing its method/property split; unlike
         # graphed.Array.__getattr__ it is reached for underscore names too, which the behavior
         # classes use for their internals
         if session.backend.attribute_kind(form, name) == "method":
             return _GraphedBoundMethod(self, name)
+        if own:
+            return _introspect(form.tt, name)
         return session.record_op("field", [self], {"field": name})
 
 
